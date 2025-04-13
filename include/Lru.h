@@ -12,10 +12,11 @@ class Node {
 private:
     Key key;
     Value value;
+    int frequency; // frequency of access in coldLRU, if exceeded, promote to LRU
     std::shared_ptr<Node> next;
     std::weak_ptr<Node> prev; // weak pointer to avoid circular reference
 public:
-    Node(const Key& key, const Value& value) : key(key), value(value), next(nullptr) {}
+    Node(const Key& key, const Value& value) : key(key), value(value), next(nullptr), frequency(0) {}
     ~Node() {}
     Key getKey() const { return key; }
     Value getValue() const { return value; }
@@ -24,6 +25,9 @@ public:
     void setNext(std::shared_ptr<Node> nextNode) { next = nextNode; }
     void setPrev(std::weak_ptr<Node> prevNode) { prev = prevNode; }
     void setValue(const Value& value) { this->value = value; }
+    void setFrequency(int freq) { frequency = freq; }
+    int getFrequency() const { return frequency; }
+    void incrementFrequency() { frequency++; } // increment frequency for coldLRU
 };
 
 template<typename Key, typename Value>
@@ -32,6 +36,7 @@ public:
     using LruNode = Node<Key, Value>;
     using LruNodePtr = std::shared_ptr<LruNode>;
     using LruMap = std::unordered_map<Key, LruNodePtr>;
+
     Lru(int cap) : capacity(cap), size(0) {
         head = std::make_shared<LruNode>(Key(), Value());
         tail = std::make_shared<LruNode>(Key(), Value());
@@ -52,6 +57,8 @@ public:
     virtual void put(const Key key, const Value value) override {
         std::lock_guard<std::mutex> lock(mutex_);
         if (cacheMap.find(key) != cacheMap.end()) {
+            //if modifying frequency here, the nodes are removed and constructed again with empty frequency, 
+            // which is not the expected behavior.
             auto node = cacheMap[key];
             removeNode(node);
         } else {
@@ -65,6 +72,7 @@ public:
     virtual Value get(const Key key) override {
         std::lock_guard<std::mutex> lock(mutex_);
         if (cacheMap.find(key) != cacheMap.end()) {
+            //same as above, if modifying frequency here, the nodes are removed and constructed again with empty frequency
             auto node = cacheMap[key];
             Value res = node->getValue();
             removeNode(node);
@@ -81,10 +89,26 @@ public:
             removeNode(node);
         }
     }
-
+    //adding a new function to check if the key is in the cache, instead of comparing with the result 
+    // of get funciton which return Value() for not found key, which is not the expected behavior.
     bool contains(const Key key) {
         std::lock_guard<std::mutex> lock(mutex_);
         return cacheMap.find(key) != cacheMap.end();
+    }
+    //thus adding these functions to get and modify the frequency of the key in the cache when needed 
+    int getFrequency(const Key key) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (cacheMap.find(key) != cacheMap.end()) {
+            return cacheMap[key]->getFrequency();
+        }
+        return 0;
+    }
+
+    void setFrequency(const Key key, int freq) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (cacheMap.find(key) != cacheMap.end()) {
+            cacheMap[key]->setFrequency(freq);
+        }
     }
 private:
     LruNodePtr head;
@@ -126,56 +150,63 @@ private:
     }
 };
 
-template<typename Key, typename Value>
-class ColdEntry {
-public:
-    ColdEntry() : frequency(0), value(Value()) {}
-    size_t frequency; // frequency of access, if exceeded, promote to LRU
-    Value value;
-};
+// template<typename Key, typename Value>
+// class ColdEntry {
+// public:
+//     ColdEntry() : frequency(0), value(Value()) {}
+//     size_t frequency; // frequency of access, if exceeded, promote to LRU
+//     Value value;
+// };
 
+//once a key pair is promoted to the main cache, it is removed from the cold cache 
+// and the frequency is no longer needed in the main cache
 template<typename Key, typename Value>
 class LruK : public Lru<Key, Value> {
 public:
-    using ColdEntryT = ColdEntry<Key,Value>;
+    // using ColdEntryT = ColdEntry<Key,Value>;
     LruK(int cap, int coldCacheSize, int kVal = 1) 
     : Lru<Key, Value>(cap), 
     promotionThresholds(kVal), 
-    coldCache(std::make_unique<Lru<Key, ColdEntryT>>(coldCacheSize)){} // store cold entries
+    coldCache(std::make_unique<Lru<Key, Value>>(coldCacheSize)){} // store cold entries
 
     void put(const Key key, const Value value) override {
         if(Lru<Key, Value>::contains(key)){
             Lru<Key, Value>::put(key, value);
             return;
         }
-        ColdEntryT entry = coldCache->get(key);
-        if(entry.frequency > promotionThresholds){
+        int KeyFreq = coldCache->getFrequency(key);
+        if(KeyFreq >= promotionThresholds){
             coldCache->remove(key);
             Lru<Key,Value>::put(key, value);
         }
         else {
-            entry.frequency++;
-            entry.value = value;
-            coldCache->put(key, entry);
+            coldCache->put(key, value);
+            coldCache->setFrequency(key, KeyFreq + 1);
         }
     }
-
+    
     Value get(const Key key) override {
-        ColdEntryT entry = coldCache->get(key);
-        if(entry.frequency > promotionThresholds){
-            coldCache->remove(key);
-            Lru<Key, Value>::put(key, entry.value);
+        if (Lru<Key, Value>::contains(key)) {
+            return Lru<Key, Value>::get(key);
+        } else if (coldCache->contains(key)) {
+            int keyFreq = coldCache->getFrequency(key);
+            Value val = coldCache->get(key);
+            if (keyFreq >= promotionThresholds) {
+                coldCache->remove(key);
+                Lru<Key, Value>::put(key, val);
+                return Lru<Key, Value>::get(key);
+            } else {
+                coldCache->setFrequency(key, keyFreq + 1);
+                return val;
+            }
         }
-        else {
-            entry.frequency++;
-            coldCache->put(key, entry);
-        }
-        return entry.value;
+        return Value();
     }
+    
 
 private:
     int promotionThresholds;
-    std::unique_ptr<Lru<Key, ColdEntryT>> coldCache;
+    std::unique_ptr<Lru<Key, Value>> coldCache;
 };
 
 template<typename Key, typename Value>

@@ -8,13 +8,14 @@
 #include "../include/Lru.h"  // Contains Lru, LruK, and HashLruK implementations
 
 // Workload parameters
-const int NUM_THREADS = 8;
+const int NUM_THREADS = 10;
 const int OPS_PER_THREAD = 100000;
 const int KEY_RANGE = 1000;      // Keys will be in [0, KEY_RANGE)
 const int CACHE_CAPACITY = 1000;
 const int COLD_CACHE_SIZE = 500;
 const int PROMOTION_THRESHOLD = 2;
-const int HASH_SLICES = 4;
+const int HASH_SLICES = 8;
+
 
 // This workload randomly performs put and get operations
 template<typename CacheType>
@@ -51,7 +52,7 @@ double runMultithreadedTest(CacheType &cache) {
     return elapsed.count();
 }
 
-int main() {
+int testLru() {
     std::cout << "=== Multithreaded Cache Performance Comparison ===\n";
 
     // Test LRU-K:
@@ -76,3 +77,4 @@ int main() {
     std::cout << "HashLRU-K improvement: " << improvementPercent << " % over LRU-K\n\n";
     return 0;
 }
+

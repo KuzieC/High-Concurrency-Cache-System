@@ -135,6 +135,7 @@ private:
         tail->getPrev().lock()->setNext(node);
         node->setNext(tail);
         tail->setPrev(node);
+        cacheMap[node->getKey()] = node;
     }
 
     void removeNode(LruNodePtr node) {
@@ -150,6 +151,7 @@ private:
     }
 };
 
+// frequency has been added to the node class, so no need for a separate class for cold cache entries
 // template<typename Key, typename Value>
 // class ColdEntry {
 // public:
@@ -158,8 +160,9 @@ private:
 //     Value value;
 // };
 
-//once a key pair is promoted to the main cache, it is removed from the cold cache 
-// and the frequency is no longer needed in the main cache
+// once a key pair is promoted to the main cache, it is removed from the cold cache 
+// and the frequency is no longer needed in the main cache.
+// future improvements: demote cold entries to the main cache if they are evicted from the main cache
 template<typename Key, typename Value>
 class LruK : public Lru<Key, Value> {
 public:

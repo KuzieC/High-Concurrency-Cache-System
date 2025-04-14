@@ -1,3 +1,6 @@
+#define CACHE_POLICY_1 Lru
+#define CACHE_POLICY_2 AvgLfu
+
 #include <iostream>
 #include <string>
 #include <chrono>
@@ -7,6 +10,7 @@
 #include <algorithm>
 #include "../include/Lru.h"
 #include "../include/Lfu.h"
+
 
 class Timer {
 public:
@@ -36,8 +40,8 @@ void testHotDataAccess() {
     const int HOT_KEYS = 20;
     const int COLD_KEYS = 5000;
 
-    Lru<int, int> lruCache(CAPACITY);
-    Lfu<int, int> Lfu(CAPACITY);
+    CACHE_POLICY_1<int, int> lruCache(CAPACITY);
+    CACHE_POLICY_2<int, int> Lfu(CAPACITY);
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -47,7 +51,6 @@ void testHotDataAccess() {
 
     for (int op = 0; op < OPERATIONS; ++op) {
         int key = (op % 100 < 70) ? gen() % HOT_KEYS : HOT_KEYS + (gen() % COLD_KEYS);
-
         // LRU Cache
         if (lruCache.get(key) != 0) {
             ++lruHits;
@@ -74,8 +77,8 @@ void testLoopPattern() {
     const int LOOP_SIZE = 500;
     const int OPERATIONS = 200000;
 
-    Lru<int, int> lruCache(CAPACITY);
-    Lfu<int, int> Lfu(CAPACITY);
+    CACHE_POLICY_1<int, int> lruCache(CAPACITY);
+    CACHE_POLICY_2<int, int> Lfu(CAPACITY);
 
     int lruHits = 0, lruMisses = 0;
     int lfuHits = 0, lfuMisses = 0;
@@ -126,8 +129,8 @@ void testWorkloadShift() {
     const int OPERATIONS = 80000;
     const int PHASE_LENGTH = OPERATIONS / 5;
 
-    Lru<int, int> lruCache(CAPACITY);
-    Lfu<int, int> Lfu(CAPACITY);
+    CACHE_POLICY_1<int, int> lruCache(CAPACITY);
+    CACHE_POLICY_2<int, int> Lfu(CAPACITY);
 
     int lruHits = 0, lruMisses = 0;
     int lfuHits = 0, lfuMisses = 0;

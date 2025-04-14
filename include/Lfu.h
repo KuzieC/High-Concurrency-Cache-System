@@ -8,7 +8,9 @@
 #include <vector>
 #include <algorithm> // for std::min
 
-// Template-based LFU Node
+template<typename Key, typename Value>
+class AvgLfu; // Forward declaration
+
 template<typename Key, typename Value>
 class LfuNode {
 public:
@@ -21,7 +23,6 @@ public:
     LfuNode(Key k, Value v) : key(k), val(v), freq(1), next(nullptr) {}
 };
 
-// Template-based Linked List
 template<typename Key, typename Value>
 class LinkList {
 public:
@@ -74,7 +75,6 @@ private:
     std::shared_ptr<LfuNode<Key, Value>> tail;
 };
 
-// Template-based LFU Cache
 template<typename Key, typename Value>
 class Lfu : public Cache<Key, Value> {
 public:
@@ -86,8 +86,9 @@ public:
         if (cap <= 0) return;
         std::lock_guard<std::mutex> lock(mutex_);
         if (mp.find(key) != mp.end()) {
-            get(key);
+            updateNode(mp[key]);
             mp[key]->val = value;
+            updateMinFreq();
             return;
         }
         if (size == cap) {
@@ -104,31 +105,33 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         if (mp.find(key) == mp.end()) return Value();
         auto LfuNode = mp[key];
-        removeLfuNode(LfuNode);
-        LfuNode->freq++;
-        insertLfuNode(LfuNode);
+        updateNode(LfuNode);
         if (LfuNode->freq - 1 == minFreq && freqList[minFreq]->isEmpty()) {
             minFreq++;
         }
-        increaseTotalFreq();
-
+        GetHook();
         return LfuNode->val;
     }
-
+protected:
+    virtual void GetHook(){};
+    virtual void removeLFUHook(int fre){};
 private:
     int size;
     int minFreq;
     int cap;
-    int totalFreq = 0;
-    int averageFreq = 0;
-    int maximumFreq = 10;
     std::mutex mutex_;
     std::unordered_map<Key, std::shared_ptr<LfuNode<Key, Value>>> mp;
     std::unordered_map<int, std::unique_ptr<LinkList<Key, Value>>> freqList;
 
+    void updateNode(std::shared_ptr<LfuNode<Key, Value>>& LfuNode) {
+        removeLfuNode(LfuNode);
+        LfuNode->freq++;
+        insertLfuNode(LfuNode);
+    }
+
     void removeLFU() {
         auto LfuNode = freqList[minFreq]->removeLFU();
-        decreaseTotalFreq(LfuNode->freq);
+        removeLFUHook(LfuNode->freq);
         mp.erase(LfuNode->key);
     }
 
@@ -152,29 +155,6 @@ private:
         minFreq = 1;
     }
 
-    void increaseTotalFreq() {
-        totalFreq++;
-        averageFreq = totalFreq / mp.size();
-        if (averageFreq > maximumFreq) {
-            handleFreq();
-        }
-    }
-
-    void decreaseTotalFreq(int num) {
-        totalFreq -= num;
-        averageFreq = totalFreq / mp.size();
-    }
-
-    void handleFreq() {
-        for (auto it = mp.begin(); it != mp.end(); ++it) {
-            auto LfuNode = it->second;
-            removeLfuNode(LfuNode);
-            LfuNode->freq = std::max(1, LfuNode->freq - maximumFreq);
-            insertLfuNode(LfuNode);
-        }
-        updateMinFreq();
-    }
-
     void updateMinFreq() {
         minFreq = INT_MAX;
         for (auto it = freqList.begin(); it != freqList.end(); ++it) {
@@ -183,5 +163,85 @@ private:
             }
             minFreq = std::min(minFreq, it->first);
         }
+    }
+
+    friend class AvgLfu<Key, Value>;
+};
+
+template<typename Key, typename Value>
+class AvgLfu : public Lfu<Key, Value> {
+private: 
+    int averageFreq;
+    int totalFreq;
+    int maximumFreq;
+    void increaseTotalFreq() {
+        totalFreq++;
+        averageFreq = totalFreq / Lfu<Key, Value>::mp.size();
+        if (averageFreq > maximumFreq) {
+            handleFreq();
+        }
+    }
+
+    void decreaseTotalFreq(int num) {
+        totalFreq -= num;
+        averageFreq = totalFreq / Lfu<Key, Value>::mp.size();
+    }
+
+    void handleFreq() {
+        for (auto it = Lfu<Key, Value>::mp.begin(); it != Lfu<Key, Value>::mp.end(); ++it) {
+            auto LfuNode = it->second;
+            Lfu<Key, Value>::removeLfuNode(LfuNode);
+            LfuNode->freq = std::max(1, LfuNode->freq - maximumFreq);
+            Lfu<Key, Value>::insertLfuNode(LfuNode);
+        }
+        Lfu<Key, Value>::updateMinFreq();
+    }
+        
+protected:
+    virtual void GetHook() override {
+        increaseTotalFreq();
+    }
+    
+    virtual void removeLFUHook(int fre) override {
+        decreaseTotalFreq(fre);
+    }
+
+
+public:
+    AvgLfu(int cap, int maxFreq = 10) : Lfu<Key, Value>(cap), maximumFreq(maxFreq) {
+        averageFreq = 0;
+        totalFreq = 0;
+    }
+
+};
+
+template<typename Key, typename Value>
+class HashAvgLfu {
+private:
+    int sliceNum;
+    int sliceSize;
+    int capacity;
+    std::vector<std::unique_ptr<AvgLfu<Key, Value>>> avgLfuShards;
+
+    size_t hash(const Key& key) {
+        return std::hash<Key>()(key) % sliceNum;
+    }
+public:
+    HashAvgLfu(int cap, int slice, int maximumAverageThreshold = 10) :sliceNum(slice), capacity(cap) {
+        sliceSize = capacity / sliceNum;
+        avgLfuShards.reserve(sliceNum);
+        for (int i = 0; i < sliceNum; ++i) {
+            avgLfuShards.emplace_back(std::make_unique<AvgLfu<Key, Value>>(sliceSize,maximumAverageThreshold));
+        }
+    }
+
+    void put(const Key key, const Value value) {
+        size_t idx = hash(key);
+        avgLfuShards[idx]->put(key, value);
+    }
+
+    Value get(const Key key) {
+        size_t idx = hash(key);
+        return avgLfuShards[idx]->get(key);
     }
 };

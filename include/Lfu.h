@@ -188,12 +188,15 @@ private:
     }
 
     void handleFreq() {
+        totalFreq = 0;
         for (auto it = Lfu<Key, Value>::mp.begin(); it != Lfu<Key, Value>::mp.end(); ++it) {
             auto LfuNode = it->second;
             Lfu<Key, Value>::removeLfuNode(LfuNode);
             LfuNode->freq = std::max(1, LfuNode->freq - maximumFreq);
+            totalFreq += LfuNode->freq;
             Lfu<Key, Value>::insertLfuNode(LfuNode);
         }
+        averageFreq = totalFreq / Lfu<Key, Value>::mp.size();
         Lfu<Key, Value>::updateMinFreq();
     }
         

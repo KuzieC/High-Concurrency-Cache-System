@@ -109,6 +109,7 @@ public:
         if (LfuNode->freq - 1 == minFreq && freqList[minFreq]->isEmpty()) {
             minFreq++;
         }
+        //override the GetHook function in HashAvgLfu class
         GetHook();
         return LfuNode->val;
     }
@@ -155,6 +156,8 @@ private:
         minFreq = 1;
     }
 
+    //minFreq might not be continuous, so we need to find the minimum frequency in freqList
+    //and update it when we remove the LFU node.
     void updateMinFreq() {
         minFreq = INT_MAX;
         for (auto it = freqList.begin(); it != freqList.end(); ++it) {

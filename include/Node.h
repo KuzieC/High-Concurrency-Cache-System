@@ -13,10 +13,9 @@ private:
     int freq;
     std::shared_ptr<Node> next;
     std::weak_ptr<Node> prev;
-
+public:
     Node(Key k, Value v) : key(k), val(v), freq(1), next(nullptr) {}
     Node() : key(), val(), freq(1), next(nullptr) {}
-public:
     Key getKey() const { return key; }
     Value getValue() const { return val; }
     int getFrequency() const { return freq; }

@@ -20,12 +20,6 @@ public:
         list = std::make_shared<LinkedList<Key, Value>>();
     }
     
-    virtual ~Lru() {
-        std::lock_guard<std::mutex> lock(mutex_); // lock the mutex to ensure thread safety
-        list->clear();
-        cacheMap.clear();
-    }
-    
     virtual void put(const Key key, const Value value) override {
         std::lock_guard<std::mutex> lock(mutex_);
         if (cacheMap.find(key) != cacheMap.end()) {

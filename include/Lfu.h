@@ -68,9 +68,9 @@ private:
     }
 
     void removeLFU() {
-        auto node = freqList[minFreq]->removeLFU();
+        auto node = freqList[minFreq]->removeFront();
         removeLFUHook(node->getFrequency());
-        mp.erase(node->key);
+        mp.erase(node->getKey());
     }
 
     void removeNode(std::shared_ptr<Node<Key, Value>>& node) {

@@ -32,7 +32,7 @@ private:
         auto node = std::make_shared<Node<Key, Value>>(key, value);
         list->insertToEnd(node);
         cacheMap[node->getKey()] = node;
-        return node->getFrequency() >= promotionThreshold;
+        return false;
     }
 
     void removeMain(std::shared_ptr<Node<Key, Value>>& node) {
@@ -77,27 +77,42 @@ public:
 
     bool checkGhost(const Key& key) {
         if(ghostMap.find(key) != ghostMap.end()) {
+            auto node = ghostMap[key];
+            removeGhost(node);
             return true;
         }
         return false;
     }
 
     void increaseCapacity(){
-        std::Lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         capacity++;
     }
 
-    void decreaseCapacity(){
-        std::Lock_guard<std::mutex> lock(mutex_);
+    bool decreaseCapacity(){
+        std::lock_guard<std::mutex> lock(mutex_);
         if(capacity > 0) {
             capacity--;
+            while(list->getSize() > capacity) {
+                evictMain();
+            }
+            while(ghostlist->getSize() > capacity) {
+                removeOldestGhost();
+            }
+            return true;
         }
+        return false;
+
     }
 
     bool put(const Key key, const Value value) override {
         std::lock_guard<std::mutex> lock(mutex_);
         if(cacheMap.find(key) != cacheMap.end()) {
             return updateNodeValue(cacheMap[key], value);
+        }
+        else if(ghostMap.find(key) != ghostMap.end()) {
+            auto node = ghostMap[key];
+            removeGhost(node);
         }
         return insertNewMain(key, value);
     }
@@ -109,6 +124,12 @@ public:
             value = node->getValue();
             flag = updateNodeValue(node, value);
             return true;
+        }
+        else if(ghostMap.find(key) != ghostMap.end()) {
+            auto node = ghostMap[key];
+            value = node->getValue();
+            removeGhost(node);
+            insertNewMain(key, value);
         }
         return false;
     }

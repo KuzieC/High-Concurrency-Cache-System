@@ -1,6 +1,6 @@
-#define CACHE_POLICY_1 Lru
-#define CACHE_POLICY_2 Lfu
-
+#define CACHE_POLICY_1 Arc
+#define CACHE_POLICY_2 Arc
+#define CACHE_POLICY_3 Arc
 #include <iostream>
 #include <string>
 #include <chrono>
@@ -12,6 +12,7 @@
 #include <atomic>
 #include "../include/Lru.h"
 #include "../include/Lfu.h"
+#include "Arc.h"
 
 // Global number of worker threads used in each test.
 const int NUM_THREADS = 16;
@@ -23,16 +24,19 @@ namespace caches {
     const int HOT_CAPACITY = 5;
     CACHE_POLICY_1<int, int> hotLruCache(HOT_CAPACITY);
     CACHE_POLICY_2<int, int> hotLfuCache(HOT_CAPACITY);
+    CACHE_POLICY_3<int, int> hotArcCache(HOT_CAPACITY);
 
     // Loop Pattern Test caches.
     const int LOOP_CAPACITY = 50;
     CACHE_POLICY_1<int, int> loopLruCache(LOOP_CAPACITY);
     CACHE_POLICY_2<int, int> loopLfuCache(LOOP_CAPACITY);
+    CACHE_POLICY_3<int, int> loopArcCache(LOOP_CAPACITY);
 
     // Workload Shift Test caches.
     const int SHIFT_CAPACITY = 4;
     CACHE_POLICY_1<int, int> shiftLruCache(SHIFT_CAPACITY);
     CACHE_POLICY_2<int, int> shiftLfuCache(SHIFT_CAPACITY);
+    CACHE_POLICY_3<int, int> shiftArcCache(SHIFT_CAPACITY);
 }
 
 class Timer {
@@ -61,12 +65,13 @@ void printResults(const std::string& testName, int capacity, int hits, int misse
 // Hot Data Access Test
 // -----------------------
 void testHotDataAccess() {
-    const int OPERATIONS = 100000;
+    const int OPERATIONS = 10000;
     const int HOT_KEYS = 2;
     const int COLD_KEYS = 5000;
     
     std::atomic<int> lruHits{0}, lruMisses{0};
     std::atomic<int> lfuHits{0}, lfuMisses{0};
+    std::atomic<int> arcHits{0}, arcMisses{0};
 
     // Worker function that processes a partition of operations.
     auto worker = [&](int startOp, int endOp) {
@@ -78,6 +83,7 @@ void testHotDataAccess() {
 
             caches::hotLruCache.put(key, key * 10);
             caches::hotLfuCache.put(key, key * 10);
+            caches::hotArcCache.put(key, key * 10);
         }
         for (int op = startOp; op < endOp; ++op) {
             int key = (op % 100 < 30) ? (gen() % HOT_KEYS)
@@ -92,24 +98,12 @@ void testHotDataAccess() {
             } else {
                 ++lfuMisses;
             }
+            if (caches::hotArcCache.get(key) != 0) {
+                ++arcHits;
+            } else {
+                ++arcMisses;
+            }
         }
-        // for (int op = startOp; op < endOp; ++op) {
-        //     int key = (op % 100 < 60) ? (gen() % HOT_KEYS)
-        //                               : (HOT_KEYS + (gen() % COLD_KEYS));
-        //     // Access the global Hot Data caches.
-        //     if (caches::hotLruCache.get(key) != 0) {
-        //         ++lruHits;
-        //     } else {
-        //         ++lruMisses;
-        //         caches::hotLruCache.put(key, key * 10);
-        //     }
-        //     if (caches::hotLfuCache.get(key) != 0) {
-        //         ++lfuHits;
-        //     } else {
-        //         ++lfuMisses;
-        //         caches::hotLfuCache.put(key, key * 10);
-        //     }
-        // }
     };
 
     // Launch worker threads and partition the operations.
@@ -127,6 +121,7 @@ void testHotDataAccess() {
 
     printResults("Hot Data Access Test (LRU)", caches::HOT_CAPACITY, lruHits.load(), lruMisses.load());
     printResults("Hot Data Access Test (LFU)", caches::HOT_CAPACITY, lfuHits.load(), lfuMisses.load());
+    printResults("Hot Data Access Test (ARC)", caches::HOT_CAPACITY, arcHits.load(), arcMisses.load());
 }
 
 // -----------------------
@@ -138,15 +133,17 @@ void testLoopPattern() {
     
     std::atomic<int> lruHits{0}, lruMisses{0};
     std::atomic<int> lfuHits{0}, lfuMisses{0};
+    std::atomic<int> arcHits{0}, arcMisses{0};
 
     // Pre-populate the global Loop Pattern caches.
     for (int key = 0; key < LOOP_SIZE; ++key) {
         caches::loopLruCache.put(key, key * 10);
         caches::loopLfuCache.put(key, key * 10);
+        caches::loopArcCache.put(key, key * 10);
     }
 
     // Worker function for Loop Pattern Test.
-    auto worker = [=, &lruHits, &lruMisses, &lfuHits, &lfuMisses](int startOp, int endOp) {
+    auto worker = [=, &lruHits, &lruMisses, &lfuHits, &lfuMisses, &arcHits, &arcMisses](int startOp, int endOp) {
         std::random_device rd;
         std::mt19937 gen(rd());
         int currentPos = 0;
@@ -172,6 +169,11 @@ void testLoopPattern() {
                 ++lfuMisses;
                 caches::loopLfuCache.put(key, key * 10);
             }
+            if (caches::loopArcCache.get(key) != 0) {
+                ++arcHits;
+            } else {
+                ++arcMisses;
+            }
         }
     };
 
@@ -190,6 +192,7 @@ void testLoopPattern() {
 
     printResults("Loop Pattern Test (LRU)", caches::LOOP_CAPACITY, lruHits.load(), lruMisses.load());
     printResults("Loop Pattern Test (LFU)", caches::LOOP_CAPACITY, lfuHits.load(), lfuMisses.load());
+    printResults("Loop Pattern Test (ARC)", caches::LOOP_CAPACITY, arcHits.load(), arcMisses.load());
 }
 
 // -----------------------
@@ -201,14 +204,16 @@ void testWorkloadShift() {
     
     std::atomic<int> lruHits{0}, lruMisses{0};
     std::atomic<int> lfuHits{0}, lfuMisses{0};
+    std::atomic<int> arcHits{0}, arcMisses{0};
 
     // Worker function for Workload Shift Test.
-    auto worker = [=, &lruHits, &lruMisses, &lfuHits, &lfuMisses](int startOp, int endOp) {
+    auto worker = [=, &lruHits, &lruMisses, &lfuHits, &lfuMisses, &arcHits, &arcMisses](int startOp, int endOp) {
         std::random_device rd;
         std::mt19937 gen(rd());
         for(int key = 0; key < 1000; ++key) {
             caches::shiftLruCache.put(key, key * 10);
             caches::shiftLfuCache.put(key, key * 10);
+            caches::shiftArcCache.put(key, key * 10);
         }
 
         for (int op = startOp; op < endOp; ++op) {
@@ -244,6 +249,11 @@ void testWorkloadShift() {
                 ++lfuMisses;
                 caches::shiftLfuCache.put(key, key * 10);
             }
+            if (caches::shiftArcCache.get(key) != 0) {
+                ++arcHits;
+            } else {
+                ++arcMisses;
+            }
         }
     };
 
@@ -262,14 +272,12 @@ void testWorkloadShift() {
 
     printResults("Workload Shift Test (LRU)", caches::SHIFT_CAPACITY, lruHits.load(), lruMisses.load());
     printResults("Workload Shift Test (LFU)", caches::SHIFT_CAPACITY, lfuHits.load(), lfuMisses.load());
+    printResults("Workload Shift Test (ARC)", caches::SHIFT_CAPACITY, arcHits.load(), arcMisses.load());
 }
 
 int testCaches() {
     // Run each test concurrently in its own thread.
     // (Each test internally spawns worker threads.)
-    // testHotDataAccess();
-    // testLoopPattern();
-    // testWorkloadShift();
     std::thread threadHot(testHotDataAccess);
     std::thread threadLoop(testLoopPattern);
     std::thread threadWork(testWorkloadShift);

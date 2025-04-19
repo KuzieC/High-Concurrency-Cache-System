@@ -1,15 +1,16 @@
 #pragma once
-#include "Cache.h"
 #include "LinkedList.h"
+#include <unordered_map>
+#include <mutex>
 
 template<typename Key, typename Value>
-class ArcLru : public Cache<Key, Value> {
+class ArcLru {
 private:
     int capacity;
     int promotionThreshold;
     std::shared_ptr<LinkedList<Key, Value>> list;
     std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> cacheMap;
-    std::shared_ptr<Node<Key, Value>> ghostlist;
+    std::shared_ptr<LinkedList<Key, Value>> ghostlist;
     std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> ghostMap;
     std::mutex mutex_;
 
@@ -63,6 +64,7 @@ private:
     }
 
     void removeOldestGhost() {
+        if(ghostlist->isEmpty()) return; // No ghost node to remove
         auto node = ghostlist->removeFront();
         ghostMap.erase(node->getKey());
     }
@@ -75,7 +77,8 @@ public:
         ghostlist = std::make_shared<LinkedList<Key, Value>>();
     }
 
-    bool checkGhost(const Key& key) {
+    bool checkGhost(const Key key) {
+        std::lock_guard<std::mutex> lock(mutex_);
         if(ghostMap.find(key) != ghostMap.end()) {
             auto node = ghostMap[key];
             removeGhost(node);
@@ -93,10 +96,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         if(capacity > 0) {
             capacity--;
-            while(list->getSize() > capacity) {
+            if(list->getSize() > capacity) {
                 evictMain();
             }
-            while(ghostlist->getSize() > capacity) {
+            if(ghostlist->getSize() > capacity) {
                 removeOldestGhost();
             }
             return true;
@@ -105,19 +108,19 @@ public:
 
     }
 
-    bool put(const Key key, const Value value) override {
+    void put(const Key key, const Value value, bool& flag)  {
         std::lock_guard<std::mutex> lock(mutex_);
         if(cacheMap.find(key) != cacheMap.end()) {
-            return updateNodeValue(cacheMap[key], value);
+            flag = updateNodeValue(cacheMap[key], value);
         }
         else if(ghostMap.find(key) != ghostMap.end()) {
             auto node = ghostMap[key];
             removeGhost(node);
         }
-        return insertNewMain(key, value);
+        flag = insertNewMain(key, value);
     }
 
-    bool get(const Key key, Value& value, bool& flag ) override {
+    bool get(const Key key, Value& value, bool& flag ) {
         std::lock_guard<std::mutex> lock(mutex_);
         if(cacheMap.find(key) != cacheMap.end()) {
             auto node = cacheMap[key];

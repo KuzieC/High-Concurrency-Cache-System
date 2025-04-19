@@ -25,7 +25,7 @@ private:
         return ret;
     }
 public:
-    Arc(int capacity, int promotionThreshold) : capacaity(capacity), promotionThreshold(promotionThreshold) {
+    Arc(int capacity, int promotionThreshold = 2) : capacaity(capacity), promotionThreshold(promotionThreshold) {
         lruCache = std::make_unique<ArcLru<Key, Value>>(capacaity, promotionThreshold);
         lfuCache = std::make_unique<ArcLfu<Key, Value>>(capacaity, promotionThreshold);
     }
@@ -35,7 +35,9 @@ public:
             lfuCache->put(key, value);
         }
         else{
-            if(lruCache->put(key, value)){
+            bool flag = false;
+            lruCache->put(key, value, flag);
+            if(flag){
                 lfuCache->put(key, value);
             }
         }

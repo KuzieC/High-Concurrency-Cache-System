@@ -1,9 +1,10 @@
 #pragma once
-#include "Cache.h"
 #include "LinkedList.h"
+#include <unordered_map>
+#include <mutex>
 
 template<typename Key, typename Value>
-class ArcLfu : public Cache<Key, Value> {
+class ArcLfu {
 private:
     int capacity;
     int promotionThreshold;
@@ -27,6 +28,9 @@ private:
     void updateNode(std::shared_ptr<Node<Key, Value>>& node) {
         freqList[node->getFrequency()]->remove(node);
         node->setFrequency(node->getFrequency() + 1);
+        if(freqList.find(node->getFrequency()) == freqList.end()) {
+            freqList[node->getFrequency()] = std::make_unique<LinkedList<Key, Value>>();
+        }
         freqList[node->getFrequency()]->insertToEnd(node);
     }
 
@@ -44,10 +48,15 @@ private:
         auto node = freqList[minFreq]->removeFront();
         if(node == nullptr) return; // No node to evict
         cacheMap.erase(node->getKey());
-        if(ghostlist.size() > capacity) {
+        if(ghostlist->getSize() > capacity) {
             removeOldestGhost();
         }
         insertGhost(node);
+    }
+
+    void removeGhost(std::shared_ptr<Node<Key, Value>>& node) {
+        ghostlist->remove(node);
+        ghostMap.erase(node->getKey());
     }
 
     void insertGhost(std::shared_ptr<Node<Key, Value>> node) {
@@ -57,10 +66,37 @@ private:
     }
 
     void removeOldestGhost() {
+        if(ghostlist->isEmpty()) return; // No ghost node to remove
         auto node = ghostlist->removeFront();
         ghostMap.erase(node->getKey());
     }
 public:
+    ArcLfu(int cap, int threshold) : capacity(cap), promotionThreshold(threshold) {
+        ghostlist = std::make_shared<LinkedList<Key, Value>>();
+        minFreq = 1;
+        freqList[minFreq] = std::make_unique<LinkedList<Key, Value>>();
+    }
+
+    void increaseCapacity() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        capacity++;
+    }
+
+    bool decreaseCapacity() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(capacity > 0) {
+            capacity--;
+            if(cacheMap.size() > capacity) {
+                evictMain();
+            }
+            if(ghostlist->getSize() > capacity) {
+                removeOldestGhost();
+            }
+            return true;
+        }
+        return false;
+    }
+
     Value get(const Key& key){
         Value value{};
         if(get(key, value)) {
@@ -68,13 +104,17 @@ public:
         }
         return Value(); // Return default value if not found
     }
+
     bool checkGhost(const Key& key){
+        std::lock_guard<std::mutex> lock(mutex_);
         if(ghostMap.find(key) != ghostMap.end()) {
             auto node = ghostMap[key];
             removeGhost(node);
             return true;
         }
+        return false;
     }
+
     bool get(const Key& key, Value& value) {
         std::lock_guard<std::mutex> lock(mutex_);
         if(cacheMap.find(key) != cacheMap.end()) {
@@ -82,7 +122,7 @@ public:
             value = node->getValue();
             updateNode(node);
             if(node->getFrequency() - 1 == minFreq && freqList[minFreq]->isEmpty()) {
-                updateMinFreq
+                updateMinFreq();
             }
             return true;
         } else if(ghostMap.find(key) != ghostMap.end()) {
@@ -94,7 +134,7 @@ public:
         return false;
     }
     
-    void put(const Key& key, const Value& value) {
+    void put(const Key key, const Value value)  {
         std::lock_guard<std::mutex> lock(mutex_);
         if(cacheMap.find(key) != cacheMap.end()) {
             auto node = cacheMap[key];

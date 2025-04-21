@@ -1,5 +1,5 @@
-#define CACHE_POLICY_1 Arc
-#define CACHE_POLICY_2 Arc
+#define CACHE_POLICY_1 Lru
+#define CACHE_POLICY_2 Lfu
 #define CACHE_POLICY_3 Arc
 #include <iostream>
 #include <string>
@@ -15,13 +15,13 @@
 #include "Arc.h"
 
 // Global number of worker threads used in each test.
-const int NUM_THREADS = 16;
+const int NUM_THREADS = 4;
 
 // Global cache instances for each test scenario.
 // You only need to adjust the construction here.
 namespace caches {
     // Hot Data Access Test caches.
-    const int HOT_CAPACITY = 5;
+    const int HOT_CAPACITY = 50;
     CACHE_POLICY_1<int, int> hotLruCache(HOT_CAPACITY);
     CACHE_POLICY_2<int, int> hotLfuCache(HOT_CAPACITY);
     CACHE_POLICY_3<int, int> hotArcCache(HOT_CAPACITY);
@@ -33,7 +33,7 @@ namespace caches {
     CACHE_POLICY_3<int, int> loopArcCache(LOOP_CAPACITY);
 
     // Workload Shift Test caches.
-    const int SHIFT_CAPACITY = 4;
+    const int SHIFT_CAPACITY = 50;
     CACHE_POLICY_1<int, int> shiftLruCache(SHIFT_CAPACITY);
     CACHE_POLICY_2<int, int> shiftLfuCache(SHIFT_CAPACITY);
     CACHE_POLICY_3<int, int> shiftArcCache(SHIFT_CAPACITY);
@@ -65,8 +65,8 @@ void printResults(const std::string& testName, int capacity, int hits, int misse
 // Hot Data Access Test
 // -----------------------
 void testHotDataAccess() {
-    const int OPERATIONS = 10000;
-    const int HOT_KEYS = 2;
+    const int OPERATIONS = 100000;
+    const int HOT_KEYS = 20;
     const int COLD_KEYS = 5000;
     
     std::atomic<int> lruHits{0}, lruMisses{0};
@@ -147,6 +147,7 @@ void testLoopPattern() {
         std::random_device rd;
         std::mt19937 gen(rd());
         int currentPos = 0;
+
         for (int op = startOp; op < endOp; ++op) {
             int key;
             if (op % 100 < 70) {
@@ -157,6 +158,7 @@ void testLoopPattern() {
             } else {
                 key = LOOP_SIZE + (gen() % LOOP_SIZE);
             }
+
             if (caches::loopLruCache.get(key) != 0) {
                 ++lruHits;
             } else {
@@ -173,6 +175,7 @@ void testLoopPattern() {
                 ++arcHits;
             } else {
                 ++arcMisses;
+                caches::loopArcCache.put(key, key * 10);
             }
         }
     };
@@ -253,6 +256,7 @@ void testWorkloadShift() {
                 ++arcHits;
             } else {
                 ++arcMisses;
+                caches::shiftArcCache.put(key, key * 10);
             }
         }
     };

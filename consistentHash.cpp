@@ -1,4 +1,4 @@
-#include "include/consistentHash.h"
+#include "include/ConsistentHash.h"
 
 #include <mutex>
 #include <iostream>

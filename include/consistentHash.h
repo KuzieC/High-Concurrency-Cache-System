@@ -1,4 +1,3 @@
-
 #ifndef consistenthashh
 #define consistenthashh
 #include <atomic>

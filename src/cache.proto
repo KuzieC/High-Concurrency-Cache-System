@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+package cache;
+
+message Request {
+    string group = 1;
+    string key = 2;
+    google.protobuf.Any value = 3;
+}
+
+message GetResponse {
+    google.protobuf.Any value = 1;
+}
+
+message DeleteResponse {
+    bool value = 1;
+}
+
+message SetResponse {
+    bool value = 1;
+}
+
+service Cache {
+    rpc Get(Request) returns (GetResponse);
+    rpc Set(Request) returns (SetResponse);
+    rpc Delete(Request) returns (DeleteResponse);
+}

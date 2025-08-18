@@ -12,7 +12,6 @@
 class consistentHash{
 public:
     consistentHash(int replicanum, int minreplica, int maxreplica, double rebalancerthreashold);
-    ~consistentHash();
 
     bool Add(const std::string& node);
     bool Remove(const std::string& node);

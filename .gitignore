@@ -21,4 +21,4 @@ Makefile
 *.tmp
 
 # Ignore Visual Studio Code settings
-.vscode/
+.vscode/*.gch

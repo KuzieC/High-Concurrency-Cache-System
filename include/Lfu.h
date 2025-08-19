@@ -133,8 +133,13 @@ private:
         minFreq = 1;
     }
 
-    //minFreq might not be continuous, so we need to find the minimum frequency in freqList
-    //and update it when we remove the LFU node.
+    /**
+     * @brief Update the minimum frequency after node removal or modification.
+     * 
+     * The minimum frequency might not be continuous, so we need to find 
+     * the actual minimum frequency in the frequency list and update it 
+     * when we remove the LFU node.
+     */
     void updateMinFreq() {
         minFreq = INT_MAX;
         for (auto it = freqList.begin(); it != freqList.end(); ++it) {

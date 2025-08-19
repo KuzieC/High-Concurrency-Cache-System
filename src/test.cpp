@@ -52,6 +52,14 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 };
 
+/**
+ * @brief Print test results for a single cache algorithm.
+ * 
+ * @param testName The name of the test scenario.
+ * @param capacity The cache capacity used in the test.
+ * @param hits The number of cache hits.
+ * @param misses The number of cache misses.
+ */
 void printResults(const std::string& testName, int capacity, int hits, int misses) {
     std::cout << "\n=== " << testName << " ===\n";
     std::cout << "Cache Capacity: " << capacity << "\n";
@@ -61,6 +69,17 @@ void printResults(const std::string& testName, int capacity, int hits, int misse
               << (100.0 * misses / (hits + misses)) << "%\n";
 }
 
+/**
+ * @brief Print a comparative table of test results for multiple cache algorithms.
+ * 
+ * This function creates a formatted table showing hit rates for LRU, LFU, and ARC
+ * cache algorithms across different test scenarios.
+ * 
+ * @param testNames Array of test scenario names.
+ * @param capacities Array of cache capacities used in each test.
+ * @param hits 2D array of hit counts [test][algorithm].
+ * @param misses 2D array of miss counts [test][algorithm].
+ */
 void printResultsTable(const std::string testNames[3], int capacities[3], int hits[3][3], int misses[3][3]) {
     std::cout << std::left << std::setw(28) << "Test Case";
     std::cout << std::setw(18) << "LRU (Hit%)";
@@ -81,6 +100,21 @@ void printResultsTable(const std::string testNames[3], int capacities[3], int hi
 // -----------------------
 // Hot Data Access Test
 // -----------------------
+/**
+ * @brief Test cache performance with hot data access patterns.
+ * 
+ * This test simulates a workload where a small subset of keys (hot data)
+ * are accessed frequently (30% probability) while a larger set of cold
+ * keys are accessed less frequently. This pattern tests how well each
+ * cache algorithm handles temporal locality.
+ * 
+ * @param lruHits Reference to store LRU cache hit count.
+ * @param lruMisses Reference to store LRU cache miss count.
+ * @param lfuHits Reference to store LFU cache hit count.
+ * @param lfuMisses Reference to store LFU cache miss count.
+ * @param arcHits Reference to store ARC cache hit count.
+ * @param arcMisses Reference to store ARC cache miss count.
+ */
 void testHotDataAccess(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisses, int& arcHits, int& arcMisses) {
     const int OPERATIONS = 100000;
     const int HOT_KEYS = 20;
@@ -147,6 +181,21 @@ void testHotDataAccess(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisse
 // -----------------------
 // Loop Pattern Test
 // -----------------------
+/**
+ * @brief Test cache performance with loop access patterns.
+ * 
+ * This test simulates a workload with sequential loop access patterns
+ * where keys are accessed in cyclic order. This pattern can be particularly
+ * challenging for cache algorithms and tests their ability to handle
+ * scan resistance and working set management.
+ * 
+ * @param lruHits Reference to store LRU cache hit count.
+ * @param lruMisses Reference to store LRU cache miss count.
+ * @param lfuHits Reference to store LFU cache hit count.
+ * @param lfuMisses Reference to store LFU cache miss count.
+ * @param arcHits Reference to store ARC cache hit count.
+ * @param arcMisses Reference to store ARC cache miss count.
+ */
 void testLoopPattern(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisses, int& arcHits, int& arcMisses) {
     const int LOOP_SIZE = 500;
     const int OPERATIONS = 200000;
@@ -224,6 +273,21 @@ void testLoopPattern(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisses,
 // -----------------------
 // Workload Shift Test
 // -----------------------
+/**
+ * @brief Test cache performance with shifting workload patterns.
+ * 
+ * This test simulates a complex workload that shifts between different
+ * access patterns over time: hot data access, large range access,
+ * loop access, locality access, and mixed access. This tests how well
+ * cache algorithms adapt to changing workload characteristics.
+ * 
+ * @param lruHits Reference to store LRU cache hit count.
+ * @param lruMisses Reference to store LRU cache miss count.
+ * @param lfuHits Reference to store LFU cache hit count.
+ * @param lfuMisses Reference to store LFU cache miss count.
+ * @param arcHits Reference to store ARC cache hit count.
+ * @param arcMisses Reference to store ARC cache miss count.
+ */
 void testWorkloadShift(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisses, int& arcHits, int& arcMisses) {
     const int OPERATIONS = 80000;
     const int PHASE_LENGTH = OPERATIONS / 5;
@@ -305,6 +369,16 @@ void testWorkloadShift(int& lruHits, int& lruMisses, int& lfuHits, int& lfuMisse
     arcMisses = arcMissesAtomic.load();
 }
 
+/**
+ * @brief Main function to run all cache performance tests.
+ * 
+ * This function coordinates the execution of all cache performance tests
+ * (Hot Data Access, Loop Pattern, and Workload Shift) and prints a
+ * comparative table of results showing hit rates for LRU, LFU, and ARC
+ * cache algorithms.
+ * 
+ * @return 0 on successful completion.
+ */
 int testCaches() {
     // Arrays to store results for each test case.
     const std::string testNames[3] = {"Hot Data Access Test", "Loop Pattern Test", "Workload Shift Test"};

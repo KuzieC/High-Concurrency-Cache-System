@@ -17,7 +17,16 @@ const int PROMOTION_THRESHOLD = 2;
 const int HASH_SLICES = 8;
 
 
-// This workload randomly performs put and get operations
+/**
+ * @brief Workload function that performs random put and get operations on a cache.
+ * 
+ * This function simulates a realistic cache workload by performing a mix of
+ * put and get operations with random keys within a specified range.
+ * 
+ * @tparam CacheType The type of cache to test (LRU, LRU-K, HashLRU-K, etc.).
+ * @param cache Reference to the cache instance.
+ * @param threadId Unique identifier for this thread (used for seeding random generator).
+ */
 template<typename CacheType>
 void workload(CacheType &cache, int threadId) {
     // Seed rand() differently per thread (for simplicity)
@@ -36,7 +45,16 @@ void workload(CacheType &cache, int threadId) {
     }
 }
 
-// Runs the workload with the given cache type using multiple threads and returns the elapsed milliseconds.
+/**
+ * @brief Run a multithreaded performance test on a cache implementation.
+ * 
+ * This function creates multiple threads that concurrently access the cache,
+ * measures the total execution time, and returns the elapsed time in milliseconds.
+ * 
+ * @tparam CacheType The type of cache to test.
+ * @param cache Reference to the cache instance.
+ * @return The elapsed time in milliseconds for all threads to complete.
+ */
 template<typename CacheType>
 double runMultithreadedTest(CacheType &cache) {
     std::vector<std::thread> threads;
@@ -52,6 +70,15 @@ double runMultithreadedTest(CacheType &cache) {
     return elapsed.count();
 }
 
+/**
+ * @brief Main test function comparing LRU-K and HashLRU-K performance.
+ * 
+ * This function benchmarks both LRU-K and HashLRU-K cache implementations
+ * under the same multithreaded workload and reports performance metrics
+ * including throughput and improvement percentages.
+ * 
+ * @return 0 on successful completion.
+ */
 int testLru() {
     std::cout << "=== Multithreaded Cache Performance Comparison ===\n";
 

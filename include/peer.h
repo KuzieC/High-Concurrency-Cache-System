@@ -51,16 +51,24 @@ public:
         request.set_key(key);
         cache::GetResponse response;
         grpc::Status status = stub_->Get(&context, request, &response);
-        if (!status.ok()) {
+        if (!status.ok() || !response.has_value()) {
             return std::nullopt;
         }
-        if (response.has_value()) {
-            T value;
-            if (response.value().UnpackTo(&value)) {
-                return value;
+        if constexpr (std::is_same_v<T, std::string>) {
+            google::protobuf::StringValue w;
+            if (response.value().UnpackTo(&w)) {
+                return w.value();
             }
-            spdlog::error("Failed to unpack response value for key: {}", key);
+        } else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, int32_t>) {
+            google::protobuf::Int32Value w;
+            if (response.value().UnpackTo(&w)) {
+                return static_cast<T>(w.value());
+            }
+        } else {
+            static_assert(std::is_same_v<T, void>, "peer::get supports only std::string and int");
         }
+
+        spdlog::error("Failed to unpack response value for key: {} to requested type", key);
         return std::nullopt;
     }
 
@@ -78,11 +86,23 @@ public:
         request.set_group(group_name);
         request.set_key(key);
 
-        request.mutable_value()->PackFrom(value);
+        if constexpr (std::is_same_v<T, std::string>) {
+            google::protobuf::StringValue w;
+            w.set_value(value);
+            request.mutable_value()->PackFrom(w);
+        } else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, int32_t>) {
+            google::protobuf::Int32Value w;
+            w.set_value(static_cast<int32_t>(value));
+            request.mutable_value()->PackFrom(w);
+        } else {
+            static_assert(std::is_same_v<T, void>, "peer::set supports only std::string and int");
+        }
+
         cache::SetResponse response;
         grpc::Status status = stub_->Set(&context, request, &response);
         if (!status.ok()) {
-            spdlog::error("Failed to set key to peer: {}", status.error_message());
+            spdlog::error("Set RPC failed for {}:{} — {} (code={})",
+                        group_name, key, status.error_message(), static_cast<int>(status.error_code()));
             return false;
         }
         return true;

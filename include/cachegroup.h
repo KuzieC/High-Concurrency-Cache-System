@@ -33,10 +33,9 @@ std::mutex cacheGroupsMutex;
  * using etcd for service discovery. It provides automatic cache miss handling,
  * peer selection, and data synchronization across multiple cache instances.
  *
- * @tparam Key   The type of the cache key.
  * @tparam Value The type of the cache value.
  */
-template<typename Key, typename Value>
+template<typename Value>
 class CacheGroup {
 public:
     /**
@@ -48,14 +47,14 @@ public:
      * @param etcdKey The specific key for this cache instance in etcd.
      * @param etcdEndpoints Comma-separated list of etcd endpoints.
      */
-    CacheGroup(std::string groupName, std::function<Value(const Key&)> cacheMissHandler, std::string etcdPrefix, std::string etcdKey, std::string etcdEndpoints)
+    CacheGroup(std::string groupName, std::function<Value(const std::string&)> cacheMissHandler, std::string etcdPrefix, std::string etcdKey, std::string etcdEndpoints)
         : groupName_(groupName),
           cacheMissHandler_(cacheMissHandler),
           isClosed_(false),
           etcdPrefix_(etcdPrefix),
           etcdKey_(etcdKey),
           etcdEndpoints_(etcdEndpoints) {
-        cache_ = std::make_unique<Lru<Key, Value>>();
+        cache_ = std::make_unique<Lru<std::string, Value>>();
         peerPicker_ = std::make_unique<PeerPicker>(etcdPrefix, etcdKey, etcdEndpoints);
     }
 
@@ -109,7 +108,7 @@ public:
      * @return Reference to the CacheGroup instance.
      */
     static CacheGroup& CreateCacheGroup(const std::string& groupName, 
-                                    std::function<Value(const Key&)> cacheMissHandler, 
+                                    std::function<Value(const std::string&)> cacheMissHandler, 
                                     const std::string& etcdPrefix, 
                                     const std::string& etcdKey, 
                                     const std::string& etcdEndpoints) {
@@ -145,65 +144,61 @@ public:
      * This method first checks the local cache, then attempts to load
      * from peers if not found locally.
      * 
-     * @tparam K The key type (allows for different key types).
      * @tparam V The value type (allows for different value types).
-     * @param key The key to retrieve.
+     * @param key The string key to retrieve.
      * @return Optional containing the value if found, empty otherwise.
      */
-    template<typename K, typename V>
-    std::optional<V> Get(const K& key){
+    template<typename V>
+    std::optional<V> Get(const std::string& key){
         auto res = cache_->get(key);
         if(res) {
             return res;
         }
 
-        return LoadFromPeer(key);
+        return LoadFromPeer<V>(key);
     }
 
     /**
      * @brief Set a key-value pair in the cache with optional broadcasting.
      * 
-     * @tparam K The key type.
      * @tparam V The value type.
-     * @param key The key to set.
+     * @param key The string key to set.
      * @param value The value to associate with the key.
      * @param needBoardcast Whether to broadcast this update to peers.
      */
-    template<typename K, typename V>
-    void Set(const K& key, const V& value, bool needBoardcast) {
+    template<typename V>
+    void Set(const std::string& key, const V& value, bool needBoardcast) {
         cache_->put(key, value);
         if (needBoardcast) {
-            BoardCast(key, value, Sync::SET);
+            BoardCast<V>(key, value, Sync::SET);
         }
     }
 
     /**
      * @brief Delete a key from the cache with optional broadcasting.
      * 
-     * @tparam K The key type.
      * @tparam V The value type.
-     * @param key The key to delete.
+     * @param key The string key to delete.
      * @param needBoardcast Whether to broadcast this deletion to peers.
      */
-    template<typename K, typename V>
-    void Del(const K& key, bool needBoardcast) {
+    template<typename V>
+    void Del(const std::string& key, bool needBoardcast) {
         cache_->remove(key);
         if (needBoardcast) {
-            BoardCast(key, V(), Sync::DELETE);
+            BoardCast<V>(key, V(), Sync::DELETE);
         }
     }
 
     /**
      * @brief Broadcast a cache operation to the appropriate peer.
      * 
-     * @tparam K The key type.
      * @tparam V The value type.
-     * @param key The key being operated on.
+     * @param key The string key being operated on.
      * @param value The value (ignored for DELETE operations).
      * @param sync The type of operation (SET or DELETE).
      */
-    template<typename K, typename V>
-    void BoardCast(const K& key, const V& value, Sync sync) {
+    template<typename V>
+    void BoardCast(const std::string& key, const V& value, Sync sync) {
         auto peer = peerPicker_->PickPeer(key);
         if (peer) {
             switch (sync) {
@@ -225,14 +220,13 @@ public:
      * This method uses the SingleFlight pattern to ensure that concurrent requests
      * for the same key result in only one network call to peers.
      * 
-     * @tparam K The key type.
      * @tparam V The value type.
-     * @param key The key to load from peers.
+     * @param key The string key to load from peers.
      * @return Optional containing the loaded value if successful.
      */
-    template<typename K, typename V>
-    std::optional<V> LoadFromPeer(const K& key) {
-        auto res = singleFlight_.run(key, [&]) {
+    template<typename V>
+    std::optional<V> LoadFromPeer(const std::string& key) {
+        auto res = singleFlight_.run(key, [&] {
             auto peer = peerPicker_->PickPeer(key);
             if( peer) {
                 auto value = peer->Get(key);
@@ -246,7 +240,7 @@ public:
                 }
             }
             return value;
-        };
+        });
         if(!res) {
             spdlog::error("Failed to load key {} from singleFlight", key);
             return std::nullopt;
@@ -255,11 +249,11 @@ public:
     }
 
 private:
-    std::unique_ptr<Lru<Key, Value>> cache_; ///< Local cache instance.
+    std::unique_ptr<Lru<std::string, Value>> cache_; ///< Local cache instance.
     std::unique_ptr<PeerPicker> peerPicker_; ///< Peer selection and management.
     std::string groupName_; ///< Name of this cache group.
     std::atomic<bool> isClosed_; ///< Flag indicating if the cache group is closed.
-    std::function<Value(const Key&)> cacheMissHandler_; ///< Function to handle cache misses.
+    std::function<Value(const std::string&)> cacheMissHandler_; ///< Function to handle cache misses.
     SingleFlight<Value> singleFlight_; ///< SingleFlight instance to prevent duplicate requests.
     std::string etcdPrefix_; ///< etcd service prefix.
     std::string etcdKey_; ///< etcd service key.

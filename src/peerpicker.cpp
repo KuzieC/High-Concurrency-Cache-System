@@ -115,7 +115,7 @@ void PeerPicker::Remove(const std::string& addr) {
 
 std::string PeerPicker::ParseAddrFromKey(const std::string& key) {
     if (key.starts_with(service_name_)) {
-        return key.substr(service_name_.length() + 1);
+        return key.substr(service_name_.length()+1);
     }
     return "";
 }

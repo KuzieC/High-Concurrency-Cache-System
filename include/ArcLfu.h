@@ -12,14 +12,14 @@
 template<typename Key, typename Value>
 class ArcLfu {
 private:
-    int capacity;
-    int promotionThreshold;
-    std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> cacheMap;
-    std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> ghostMap;
-    std::shared_ptr<LinkedList<Key, Value>> ghostlist;
-    std::unordered_map<int, std::unique_ptr<LinkedList<Key, Value>>> freqList;
-    std::mutex mutex_;
-    int minFreq;
+    int capacity; ///< The maximum number of items the cache can hold.
+    int promotionThreshold; ///< The frequency threshold for promotion.
+    std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> cacheMap; ///< Map for quick access to main cache nodes.
+    std::unordered_map<Key, std::shared_ptr<Node<Key, Value>>> ghostMap; ///< Map for quick access to ghost list nodes.
+    std::shared_ptr<LinkedList<Key, Value>> ghostlist; ///< The ghost list for tracking evicted items.
+    std::unordered_map<int, std::unique_ptr<LinkedList<Key, Value>>> freqList; ///< Frequency-list mapping for LFU.
+    std::mutex mutex_; ///< Mutex for thread safety.
+    int minFreq; ///< The current minimum frequency in the cache.
 
     /**
      * @brief Update the minimum frequency in the frequency list.
@@ -128,7 +128,7 @@ public:
      */
     bool decreaseCapacity() {
         std::lock_guard<std::mutex> lock(mutex_);
-        // if capacaity reach 0, we can't decrease it anymore
+        // if capacity reach 0, we can't decrease it anymore
         if(capacity > 1) {
             capacity--;
             if(cacheMap.size() > capacity) {

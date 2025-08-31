@@ -18,11 +18,13 @@
 #include <unordered_map>
 
 /**
- * @brief PeerPicker class for managing peers in local node.
+ * @brief PeerPicker class for managing peers in the local node.
  * 
+ * PeerPicker is responsible for peer management in a distributed cache system.
  * It uses etcd for service discovery and consistent hashing for peer selection.
  * This class handles peer management, service discovery, and load balancing 
- * across multiple cache nodes in a distributed system.
+ * across multiple cache nodes in a distributed system. It automatically detects
+ * when peers join or leave the cluster and updates the hash ring accordingly.
  */
 class PeerPicker {
 public:
@@ -100,14 +102,14 @@ private:
      */
     std::string ParseAddrFromKey(const std::string& key);
 
-    std::shared_mutex mtx;
-    std::unordered_map<std::string, std::shared_ptr<peer>> peers;
-    ConsistentHash hash_ring;
-    std::shared_ptr<etcd::Client> etcd_client;
-    std::unique_ptr<etcd::Watcher> watcher;
-    std::thread watcher_thread;
-    std::string service_name_;
-    std::string etcd_key;
+    std::shared_mutex mtx; ///< Reader-writer mutex for thread-safe peer management.
+    std::unordered_map<std::string, std::shared_ptr<peer>> peers; ///< Map of peer addresses to peer instances.
+    ConsistentHash hash_ring; ///< Consistent hash ring for peer selection.
+    std::shared_ptr<etcd::Client> etcd_client; ///< etcd client for service discovery.
+    std::unique_ptr<etcd::Watcher> watcher; ///< etcd watcher for monitoring service changes.
+    std::thread watcher_thread; ///< Thread for running the etcd watcher.
+    std::string service_name_; ///< The service name prefix for etcd keys.
+    std::string etcd_key; ///< The specific etcd key for this service instance.
     
 };
 #endif // PEER_PICKER_H

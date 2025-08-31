@@ -29,11 +29,11 @@ public:
     /**
      * @brief Construct a PeerPicker with etcd configuration.
      * 
-     * @param etcd_prefix The prefix for service keys in etcd.
+     * @param service_name_ The prefix for service keys in etcd.
      * @param etcd_key The specific key for this service instance.
      * @param etcd_endpoints Comma-separated list of etcd endpoints.
      */
-    PeerPicker(const std::string& etcd_prefix, const std::string& etcd_key, const std::string& etcd_endpoints);
+    PeerPicker(const std::string& service_name_, const std::string& etcd_key, const std::string& etcd_endpoints);
     
     /**
      * @brief Destructor that cleans up etcd watchers and connections.
@@ -106,7 +106,7 @@ private:
     std::shared_ptr<etcd::Client> etcd_client;
     std::unique_ptr<etcd::Watcher> watcher;
     std::thread watcher_thread;
-    std::string etcd_prefix;
+    std::string service_name_;
     std::string etcd_key;
     
 };

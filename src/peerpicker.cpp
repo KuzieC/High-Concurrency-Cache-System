@@ -15,8 +15,8 @@
 #include <etcd/Value.hpp>
 #include <etcd/Watcher.hpp>
 
-PeerPicker::PeerPicker(const std::string& etcd_prefix, const std::string& etcd_key, const std::string& etcd_endpoints)
-    : etcd_prefix(etcd_prefix), etcd_key(etcd_key), hash_ring(50,10,200,0.25) {
+PeerPicker::PeerPicker(const std::string& service_name, const std::string& etcd_key, const std::string& etcd_endpoints)
+    : service_name_(service_name), etcd_key(etcd_key), hash_ring(50,10,200,0.25) {
     etcd_client = std::make_shared<etcd::Client>(etcd_endpoints);
     if(!StartDiscovery()) {
         spdlog::error("Failed to start discovery for PeerPicker with etcd endpoints: {}", etcd_endpoints);
@@ -53,7 +53,7 @@ bool PeerPicker::StartDiscovery() {
 }
 
 void PeerPicker::WatchChanges() {
-    std::string key = etcd_prefix + "/" + etcd_key;
+    std::string key = service_name_ + "/" + etcd_key;
     watcher = std::make_unique<etcd::Watcher>(*etcd_client, key, [this](const etcd::Response& resp) {
         HandleEvents(resp);
     });
@@ -85,7 +85,7 @@ void PeerPicker::HandleEvents(const etcd::Response& resp) {
 
 bool PeerPicker::FetchAllServices() {
     std::lock_guard lock(mtx);
-    std::string key = etcd_prefix + "/" + etcd_key;
+    std::string key = service_name_ + "/" + etcd_key;
     etcd::Response resp = etcd_client->ls(key).get();
 
     if (!resp.is_ok()) {
@@ -114,8 +114,8 @@ void PeerPicker::Remove(const std::string& addr) {
 }
 
 std::string PeerPicker::ParseAddrFromKey(const std::string& key) {
-    if (key.starts_with(etcd_prefix)) {
-        return key.substr(etcd_prefix.length() + 1);
+    if (key.starts_with(service_name_)) {
+        return key.substr(service_name_.length() + 1);
     }
     return "";
 }

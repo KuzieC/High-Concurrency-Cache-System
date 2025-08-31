@@ -3,12 +3,13 @@
 #include <mutex>
 #include <iostream>
 #include <algorithm>
-consistentHash::consistentHash(int replicanum, int minreplica, int maxreplica, double rebalancerthreashold):
+consistentHash::consistentHash(int replicanum = 50, int minreplica = 10, int maxreplica = 200, double rebalancerthreashold = 0.25):
         replicaNum(replicanum), 
         minReplica(minreplica), 
         maxReplica(maxreplica), 
         rebalanceThreshold(rebalancerthreashold){}
-    
+consistentHash::~consistentHash() {}
+
 bool consistentHash::Add(const std::string& node){
     std::unique_lock<std::shared_mutex> lock(mtx);
     for(int i = 0; i < replicaNum; i++){

@@ -22,6 +22,15 @@
 
 #include "cache.grpc.pb.h"
 
+/**
+ * @brief Represents a peer cache node in the distributed cache system.
+ * 
+ * The peer class provides a gRPC client interface to communicate with remote
+ * cache nodes. It supports templated get/set operations for different data types
+ * and handles automatic connection management, timeouts, and error handling.
+ * This class is used by the PeerPicker to route cache operations to the
+ * appropriate nodes in the distributed system.
+ */
 class peer {
 public:
     /**
@@ -38,6 +47,11 @@ public:
 
     /**
      * @brief Gets the value associated with a key in a specific group.
+     * 
+     * This method sends a gRPC Get request to the peer and deserializes the response
+     * based on the template type. Currently supports std::string and int types.
+     * 
+     * @tparam T The type of the value to retrieve (std::string or int).
      * @param group_name The name of the group.
      * @param key The key to look up.
      * @return An optional containing the value if found, or std::nullopt if not found.
@@ -74,6 +88,12 @@ public:
 
     /**
      * @brief Sets a value for a key in a specific group.
+     * 
+     * This method sends a gRPC Set request to the peer with the specified value.
+     * The value is automatically serialized based on its type using Protocol Buffers.
+     * Currently supports std::string and int types.
+     * 
+     * @tparam T The type of the value to set (std::string or int).
      * @param group_name The name of the group.
      * @param key The key to set.
      * @param value The value to associate with the key.
@@ -110,6 +130,9 @@ public:
 
     /**
      * @brief Deletes a key from a specific group.
+     * 
+     * This method sends a gRPC Delete request to the peer to remove the specified key.
+     * 
      * @param group_name The name of the group.
      * @param key The key to delete.
      * @return True if the operation was successful, false otherwise.
@@ -130,8 +153,8 @@ public:
     }
 
 private:
-    std::string name_;
-    std::shared_ptr<grpc::Channel> channel_;
-    std::unique_ptr<cache::Cache::Stub> stub_;
+    std::string name_; ///< The network address (host:port) of this peer.
+    std::shared_ptr<grpc::Channel> channel_; ///< gRPC channel for communication with the peer.
+    std::unique_ptr<cache::Cache::Stub> stub_; ///< gRPC stub for making cache service calls.
 };
 #endif // peer_h

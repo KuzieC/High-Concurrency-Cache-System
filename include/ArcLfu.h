@@ -128,7 +128,7 @@ public:
      */
     bool decreaseCapacity() {
         std::lock_guard<std::mutex> lock(mutex_);
-        // if capacaity reach 0, we can't decrease it anymore
+        // if capacity reach 0, we can't decrease it anymore
         if(capacity > 1) {
             capacity--;
             if(cacheMap.size() > capacity) {

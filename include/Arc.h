@@ -14,7 +14,7 @@
 template<typename Key, typename Value>
 class Arc : public Cache<Key, Value> {
 private:
-    int capacaity; ///< The maximum number of items the cache can hold.
+    int capacity; ///< The maximum number of items the cache can hold.
     int promotionThreshold; ///< The frequency threshold for promotion.
     std::unique_ptr<ArcLru<Key, Value>> lruCache; ///< LRU component of ARC.
     std::unique_ptr<ArcLfu<Key, Value>> lfuCache; ///< LFU component of ARC.
@@ -42,9 +42,9 @@ public:
      * @param capacity The maximum number of items the cache can hold.
      * @param promotionThreshold The frequency threshold for promotion.
      */
-    Arc(int capacity, int promotionThreshold = 2) : capacaity(capacity), promotionThreshold(promotionThreshold) {
-        lruCache = std::make_unique<ArcLru<Key, Value>>(capacaity, promotionThreshold);
-        lfuCache = std::make_unique<ArcLfu<Key, Value>>(capacaity, promotionThreshold);
+    Arc(int capacity, int promotionThreshold = 2) : capacity(capacity), promotionThreshold(promotionThreshold) {
+        lruCache = std::make_unique<ArcLru<Key, Value>>(capacity, promotionThreshold);
+        lfuCache = std::make_unique<ArcLfu<Key, Value>>(capacity, promotionThreshold);
     }
 
     /**

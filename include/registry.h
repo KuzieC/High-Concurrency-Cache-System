@@ -1,5 +1,5 @@
-#ifndef REGISTROY_H
-#define REGISTROY_H
+#ifndef REGISTRY_H
+#define REGISTRY_H
 
 #include <atomic>
 #include <etcd/Client.hpp>
@@ -24,4 +24,4 @@ private:
     std::thread keepalive_thread_;
     std::atomic<bool> stop_;
 };
-#endif // REGISTROY_H
+#endif // REGISTRY_H

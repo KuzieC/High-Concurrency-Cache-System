@@ -1,4 +1,4 @@
-#include "include/resgistry.h"
+#include "include/registry.h"
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>

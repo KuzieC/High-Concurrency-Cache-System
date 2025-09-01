@@ -5,12 +5,12 @@ A high-performance distributed cache system implemented in C++17, using consiste
 ## System Architecture
 
 ### System Flow: HTTP Gateway to Database
-
+![alt text](image.png)
 The system follows this data flow pattern:
 
 1. **HTTP Client** → Sends REST request (GET/SET/DELETE) to HttpGateway
 2. **HttpGateway** → Uses consistent hashing to select target cache node → Converts HTTP to gRPC call
-3. **CacheServer** → Routes the call to CacheGroup (doesn't check cache directly)
+3. **CacheServer** → Routes the call to the specific CacheGroup
 4. **CacheGroup** → Checks local cache → If cache hit, returns data immediately
 5. **Cache Miss Handling**: CacheGroup → Uses PeerPicker to select peers → Queries other cache nodes via gRPC using Peer objects
 6. **Database Fallback**: If not found in any cache node → Calls cacheMissHandler → Fetches from database

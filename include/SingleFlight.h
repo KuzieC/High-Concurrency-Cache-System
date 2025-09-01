@@ -1,5 +1,5 @@
-#ifndef signleflighth
-#define signleflighth
+#ifndef singleflighth
+#define singleflighth
 
 #include <functional>
 #include <future>
@@ -64,4 +64,4 @@ public:
         return result;
     }
 };
-#endif // signleflighth
+#endif // singleflighth

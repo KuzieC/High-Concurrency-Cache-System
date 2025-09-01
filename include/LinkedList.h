@@ -27,6 +27,7 @@ public:
      * @param node The node to insert.
      */
     void insertToEnd(const std::shared_ptr<Node<Key, Value>>& node) {
+        std::lock_guard<std::mutex> lock(mutex_);
         auto last = tail->prev.lock();
         last->next = node;
         node->prev = last;
@@ -40,6 +41,7 @@ public:
      * @param node The node to remove.
      */
     void remove(std::shared_ptr<Node<Key, Value>>& node) {
+        std::lock_guard<std::mutex> lock(mutex_);
         auto prevNode = node->prev.lock();
         auto nextNode = node->next;
         prevNode->next = nextNode;
@@ -53,6 +55,7 @@ public:
      * @return The removed node, or nullptr if the list is empty.
      */
     std::shared_ptr<Node<Key, Value>> removeFront() {
+        std::lock_guard<std::mutex> lock(mutex_);
         auto first = head->next;
         if (first == tail) return nullptr;
         head->next = first->next;

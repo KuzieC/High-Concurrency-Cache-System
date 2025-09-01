@@ -171,3 +171,19 @@ void HttpGateway::StartDiscovery() {
         }
     });
 }
+
+int main(int argc, char* argv) {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_pattern("[http-gateway][%^%l%$] %v");
+
+    try {
+        HttpGateway gateway(FLAGS_http_port, FLAGS_etcd_endpoints, FLAGS_service_name);
+        gateway.StartService();
+    } catch (const std::exception &e) {
+        spdlog::error("Failed to start HTTP Gateway: {}", e.what());
+        return 1;
+    }
+    return 0;
+}

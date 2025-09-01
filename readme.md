@@ -10,7 +10,7 @@ The system follows this data flow pattern:
 
 1. **HTTP Client** → Sends REST request (GET/SET/DELETE) to HttpGateway
 2. **HttpGateway** → Uses consistent hashing to select target cache node → Converts HTTP to gRPC call
-3. **CacheServer** → Routes the call to CacheGroup (doesn't check cache directly)
+3. **CacheServer** → Routes the call to specific CacheGroup based on group name (multiple CacheGroups can exist in one physical node with different group names)
 4. **CacheGroup** → Checks local cache → If cache hit, returns data immediately
 5. **Cache Miss Handling**: CacheGroup → Uses PeerPicker to select peers → Queries other cache nodes via gRPC using Peer objects
 6. **Database Fallback**: If not found in any cache node → Calls cacheMissHandler → Fetches from database
@@ -20,10 +20,10 @@ The system follows this data flow pattern:
 
 The system uses gRPC for all inter-component communication:
 
-- **CacheServer** (gRPC Server): Implements cache service with Get/Set/Delete operations
+- **CacheServer** (gRPC Server): Implements cache service with Get/Set/Delete operations, routes to specific CacheGroup by group name
 - **Peer** (gRPC Client): Communicates with remote cache servers
 - **HttpGateway** (gRPC Client): Routes HTTP requests to cache servers via gRPC
-- **CacheGroup**: Orchestrates distributed operations using PeerPicker and Peer objects
+- **CacheGroup**: Orchestrates distributed operations using PeerPicker and Peer objects (multiple groups per node supported)
 - **PeerPicker**: Manages peer selection and load balancing using consistent hashing
 
 ## Key Features

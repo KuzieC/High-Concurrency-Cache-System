@@ -47,19 +47,19 @@ public:
      * 
      * @param groupName The name identifier for this cache group.
      * @param cacheMissHandler Function called when a key is not found locally or in peers.
-     * @param etcdPrefix The prefix for service registration in etcd.
+     * @param etcdServiceName The prefix for service registration in etcd.
      * @param etcdKey The specific key for this cache instance in etcd.
      * @param etcdEndpoints Comma-separated list of etcd endpoints.
      */
-    CacheGroup(std::string groupName, std::function<Value(const std::string&)> cacheMissHandler, std::string etcdPrefix, std::string etcdKey, std::string etcdEndpoints)
+    CacheGroup(std::string groupName, std::function<Value(const std::string&)> cacheMissHandler, std::string etcdServiceName, std::string etcdKey, std::string etcdEndpoints)
         : groupName_(groupName),
           cacheMissHandler_(cacheMissHandler),
           isClosed_(false),
-          etcdPrefix_(etcdPrefix),
+          etcdServiceName_(etcdServiceName),
           etcdKey_(etcdKey),
           etcdEndpoints_(etcdEndpoints) {
         cache_ = std::make_unique<Lru<std::string, Value>>();
-        peerPicker_ = std::make_unique<PeerPicker>(etcdPrefix, etcdKey, etcdEndpoints);
+        peerPicker_ = std::make_unique<PeerPicker>(etcdServiceName, etcdKey, etcdEndpoints);
     }
 
     /**
@@ -71,7 +71,7 @@ public:
         groupName_ = std::move(other.groupName_);
         cacheMissHandler_ = std::move(other.cacheMissHandler_);
         isClosed_ = other.isClosed_;
-        etcdPrefix_ = other.etcdPrefix_;
+        etcdServiceName_ = other.etcdServiceName_;
         etcdKey_ = other.etcdKey_;
         etcdEndpoints_ = other.etcdEndpoints_;
         cache_ = std::move(other.cache_);
@@ -89,7 +89,7 @@ public:
             groupName_ = std::move(other.groupName_);
             cacheMissHandler_ = std::move(other.cacheMissHandler_);
             isClosed_ = other.isClosed_;
-            etcdPrefix_ = other.etcdPrefix_;
+            etcdServiceName_ = other.etcdServiceName_;
             etcdKey_ = other.etcdKey_;
             etcdEndpoints_ = other.etcdEndpoints_;
             cache_ = std::move(other.cache_);
@@ -106,14 +106,14 @@ public:
      * 
      * @param groupName The name identifier for the cache group.
      * @param cacheMissHandler Function to handle cache misses.
-     * @param etcdPrefix The etcd service prefix.
+     * @param etcdServiceName The etcd service prefix.
      * @param etcdKey The etcd service key.
      * @param etcdEndpoints The etcd endpoints.
      * @return Reference to the CacheGroup instance.
      */
     static CacheGroup& CreateCacheGroup(const std::string& groupName, 
                                     std::function<Value(const std::string&)> cacheMissHandler, 
-                                    const std::string& etcdPrefix, 
+                                    const std::string& etcdServiceName, 
                                     const std::string& etcdKey, 
                                     const std::string& etcdEndpoints) {
         std::lock_guard<std::mutex> lock(cacheGroupsMutex);
@@ -123,7 +123,7 @@ public:
         }
 
         auto [iter, success] = cacheGroups.emplace(groupName, 
-                                                   CacheGroup(groupName, cacheMissHandler, etcdPrefix, etcdKey, etcdEndpoints));
+                                                   CacheGroup(groupName, cacheMissHandler, etcdServiceName, etcdKey, etcdEndpoints));
         return iter->second;
     } 
 
@@ -251,7 +251,7 @@ private:
     std::atomic<bool> isClosed_; ///< Flag indicating if the cache group is closed.
     std::function<Value(const std::string&)> cacheMissHandler_; ///< Function to handle cache misses.
     SingleFlight<Value> singleFlight_; ///< SingleFlight instance to prevent duplicate requests.
-    std::string etcdPrefix_; ///< etcd service prefix.
+    std::string etcdServiceName_; ///< etcd service prefix.
     std::string etcdKey_; ///< etcd service key.
     std::string etcdEndpoints_; ///< etcd endpoints configuration.
 };

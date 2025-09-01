@@ -1,3 +1,35 @@
+# High-Concurrency Distributed Cache System
+
+A high-performance distributed cache system implemented in C++17, using consistent hashing algorithm for data sharding and load balancing. The system supports multi-node cluster deployment and dynamic scaling to achieve efficient data sharing and access in distributed environments.
+
+## Key Features
+
+1. **Adaptive Consistent Hashing**
+   - Implemented adaptive consistent hashing algorithm with virtual node support
+   - Real-time monitoring of node load distribution
+
+2. **High Concurrency Support**
+   - Utilized shared_mutex for concurrent access (supporting multiple readers, single writer)
+   - Atomic operations to ensure thread safety of statistical data
+   - Implemented SingleFlight pattern to prevent cache breakdown and reduce pressure on backend services
+
+3. **Service Discovery**
+   - Etcd-based service registration and discovery
+   - Lease mechanism with automatic renewal
+   - Automatic cleanup of failed nodes
+
+4. **Node Communication**
+   - gRPC-based communication protocol between nodes
+   - Support for Get/Set/Delete operations
+
+5. **Data Consistency**
+   - Inter-node data synchronization mechanism
+   - Automatic synchronization of local write operations to corresponding remote nodes
+   - Maintaining data consistency in distributed environments
+
+6. **API Gateway**
+   - HTTP gateway service with RESTful APIs
+
 # Cache Algorithms Project
 
 This project implements and compares several advanced cache replacement algorithms in C++. The codebase is modular and extensible, supporting:

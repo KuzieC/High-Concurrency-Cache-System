@@ -66,7 +66,7 @@ private:
      * @param key The cache key to route.
      * @return The network address of the cache node that should handle this key.
      */
-    auto GetCacheNode(std::string &key);
+    auto GetCacheClient(std::string &key);
     
     /**
      * @brief Handle HTTP GET requests for cache retrieval.

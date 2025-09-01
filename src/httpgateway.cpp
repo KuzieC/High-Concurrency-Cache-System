@@ -38,7 +38,7 @@ void HttpGateway::SetupRoute() {
     });
 }
 
-auto HttpGateway::GetCacheNode(std::string &key){
+auto HttpGateway::GetCacheClient(std::string &key){
     std::lock_guard<std::mutex> lock(mtx_);
     std::string target = consistent_hash_.Get(key);
     if (target.empty()){
@@ -53,7 +53,7 @@ void HttpGateway::Get(const httplib::Request &req, httplib::Response &res) {
     std::string group = req.matches[1];
     std::string key = req.matches[2];
 
-    auto client = GetCacheNode(key);
+    auto client = GetCacheClient(key);
     if(!client) {
         spdlog::error("Failed to get cache node for key: {}", key);
         res.status = 500;
@@ -80,7 +80,7 @@ void HttpGateway::Set(const httplib::Request &req, httplib::Response &res) {
     std::string group = req.matches[1];
     std::string key = req.matches[2];
 
-    auto client = GetCacheNode(key);
+    auto client = GetCacheClient(key);
     if (!client) {
         spdlog::error("Failed to get cache node for key: {}", key);
         res.status = 500;
@@ -121,7 +121,7 @@ void HttpGateway::Del(const httplib::Request &req, httplib::Response &res) {
     std::string group = req.matches[1];
     std::string key = req.matches[2];
 
-    auto client = GetCacheNode(key);
+    auto client = GetCacheClient(key);
     if (!client) {
         spdlog::error("Failed to get cache node for key: {}", key);
         res.status = 500;
